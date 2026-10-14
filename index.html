@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f9ff">
+  <meta name="description" content="SkillSwap helps students teach what they know and learn what they love.">
+  <title>SkillSwap — Learn together. Grow together.</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="navbar container" aria-label="Main navigation">
+      <a class="brand" href="#home" aria-label="SkillSwap home">
+        <span class="brand-mark" aria-hidden="true">S</span><span>skill<span class="brand-accent">swap</span></span>
+      </a>
+      <button class="menu-toggle" id="menu-toggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="#home">Home</a>
+        <a href="#explore">Explore skills</a>
+        <a href="#how-it-works">How it works</a>
+        <div class="nav-actions" id="nav-actions">
+          <button class="button button-quiet" data-open-auth="login">Log in</button>
+          <button class="button button-primary button-small" data-open-auth="register">Register <span aria-hidden="true">→</span></button>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero-section" id="home">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-dot"></span> YOUR CAMPUS, YOUR CLASSROOM</div>
+          <h1>Learn a skill.<br><span>Share your talent.</span></h1>
+          <p class="hero-lede">The best way to learn is together. Trade your know-how with students on campus and turn the skills you have into the skills you want.</p>
+          <div class="hero-actions">
+            <a class="button button-primary button-large" href="#explore">Explore student skills <span aria-hidden="true">→</span></a>
+            <a class="button button-outline button-large" href="#how-it-works">See how it works</a>
+          </div>
+          <div class="hero-proof"><div class="avatar-stack" aria-hidden="true"><span>AM</span><span>JR</span><span>SK</span><span>+</span></div><p><strong id="hero-student-count">0</strong> students learning together</p></div>
+        </div>
+        <div class="hero-art" aria-label="Illustration of students sharing ideas">
+          <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
+          <div class="art-card art-card-top"><span class="art-icon purple">✳</span><div><strong>Design</strong><small>Creative thinking</small></div><span class="art-check">✓</span></div>
+          <div class="art-card art-card-bottom"><span class="art-icon blue">⌘</span><div><strong>Programming</strong><small>Build something great</small></div><span class="art-check">✓</span></div>
+          <div class="art-center"><div class="art-spark">✦</div><div class="people-illustration"><span class="person person-one"><i></i></span><span class="person person-two"><i></i></span><span class="person person-three"><i></i></span><span class="table"></span></div><span class="speech-bubble">Let’s swap! <b>↗</b></span></div>
+          <span class="floating-star star-one">✦</span><span class="floating-star star-two">✳</span><span class="floating-dot"></span>
+        </div>
+      </div>
+      <div class="container hero-bottom"><span>MADE FOR CURIOUS MINDS</span><div><span>✦</span> Learn by sharing <span class="hero-divider">/</span> Grow by connecting <span>✦</span></div></div>
+    </section>
+
+    <section class="section explore-section" id="explore">
+      <div class="container">
+        <div class="section-heading">
+          <div><span class="eyebrow">THE CAMPUS SKILL EXCHANGE</span><h2>Find your next <span>aha moment.</span></h2><p>Meet students who can teach you something new — and are excited to learn from you, too.</p></div>
+          <a class="text-link desktop-link" href="#dashboard">Share your skills <span>↗</span></a>
+        </div>
+        <div class="explore-toolbar">
+          <label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">Search students and skills</span><input id="search-input" type="search" placeholder="Search a skill or student..." autocomplete="off"></label>
+          <div class="filter-group" role="group" aria-label="Filter by skill category">
+            <button class="filter-chip active" data-category="All" aria-pressed="true">All skills</button>
+            <button class="filter-chip" data-category="Programming" aria-pressed="false">Programming</button>
+            <button class="filter-chip" data-category="Design" aria-pressed="false">Design</button>
+            <button class="filter-chip" data-category="Video Editing" aria-pressed="false">Video editing</button>
+            <button class="filter-chip" data-category="Other" aria-pressed="false">Other</button>
+          </div>
+        </div>
+        <div class="student-grid" id="student-grid" aria-live="polite"></div>
+        <div class="empty-state" id="explore-empty" hidden><span class="empty-icon">⌕</span><h3>No matches just yet</h3><p>Try another search or choose a different category.</p><button class="button button-outline" id="clear-search">Clear filters</button></div>
+      </div>
+    </section>
+
+    <section class="steps-section section" id="how-it-works">
+      <div class="container">
+        <div class="center-heading"><span class="eyebrow">LEARNING, REIMAGINED</span><h2>Good things happen when <span>we share.</span></h2><p>Three simple steps to turn your curiosity into a new skill.</p></div>
+        <div class="steps-grid">
+          <article class="step-card"><span class="step-number">01</span><div class="step-icon step-icon-blue">✎</div><h3>Share what you know</h3><p>Add the skills you’re happy to teach and the things you’d love to learn next.</p></article>
+          <article class="step-card"><span class="step-number">02</span><div class="step-icon step-icon-violet">⌕</div><h3>Find your study buddy</h3><p>Explore student profiles and find someone whose skills complement yours.</p></article>
+          <article class="step-card"><span class="step-number">03</span><div class="step-icon step-icon-mint">↗</div><h3>Connect and swap</h3><p>Send an exchange request, meet up, and learn something brilliant together.</p></article>
+        </div>
+        <div class="steps-cta"><span>Ready to start your next chapter?</span><button class="button button-primary" data-open-auth="register">Create your free profile <span aria-hidden="true">→</span></button></div>
+      </div>
+    </section>
+
+    <section class="dashboard-section section" id="dashboard">
+      <div class="container">
+        <div class="section-heading dashboard-heading"><div><span class="eyebrow">YOUR SKILLS, YOUR JOURNEY</span><h2>Your learning <span>dashboard.</span></h2><p>Keep your skills current and manage your exchange requests.</p></div><button class="button button-outline reset-button" id="reset-demo">↻ Reset demo data</button></div>
+        <div class="dashboard-layout">
+          <aside class="profile-panel" id="profile-panel"></aside>
+          <div class="dashboard-main">
+            <section class="dashboard-card add-skill-card">
+              <div class="card-heading"><div><span class="eyebrow">GIVE A LITTLE, GAIN A LOT</span><h3>Add your skills</h3></div><span class="heading-icon">✦</span></div>
+              <form id="skill-form" class="skill-form">
+                <label>Skills you can teach<input name="offered" type="text" maxlength="120" placeholder="e.g. Python, portrait photography" required></label>
+                <label>Skills you want to learn<input name="wanted" type="text" maxlength="120" placeholder="e.g. UI design, public speaking" required></label>
+                <label>Primary category<select name="category" required><option value="Programming">Programming</option><option value="Design">Design</option><option value="Video Editing">Video Editing</option><option value="Other">Other</option></select></label>
+                <button class="button button-primary" type="submit">Save my skills <span aria-hidden="true">→</span></button>
+              </form>
+            </section>
+            <section class="dashboard-card requests-card">
+              <div class="card-heading"><div><span class="eyebrow">MAKE SOMETHING HAPPEN</span><h3>Exchange requests</h3></div><span class="request-count" id="request-count">0</span></div>
+              <div id="requests-list" class="requests-list"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="closing-cta"><div class="container closing-inner"><div><span class="eyebrow">YOUR NEXT SKILL IS CLOSER THAN YOU THINK</span><h2>Curiosity looks good on you.</h2><p>Meet your people. Share what you know. Learn what’s next.</p></div><button class="button button-white button-large" data-open-auth="register">Join SkillSwap <span aria-hidden="true">→</span></button><span class="cta-decoration cta-decoration-one">✦</span><span class="cta-decoration cta-decoration-two">✳</span></div></section>
+  </main>
+  <footer class="site-footer"><div class="container footer-inner"><a class="brand footer-brand" href="#home"><span class="brand-mark">S</span><span>skill<span class="brand-accent">swap</span></span></a><p>Built for curious minds, powered by each other.</p><span>© <span id="current-year"></span> SkillSwap · Student project demo</span></div></footer>
+
+  <div class="modal-backdrop" id="auth-modal" hidden>
+    <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <button class="modal-close" type="button" data-close-modal aria-label="Close dialog">×</button>
+      <div class="modal-brand"><span class="brand-mark">S</span></div>
+      <span class="eyebrow">YOUR CAMPUS COMMUNITY</span><h2 id="auth-title">Welcome to SkillSwap</h2><p class="modal-intro">A demo login system for your student skill exchange.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Choose login or register"><button class="auth-tab active" type="button" data-auth-tab="login" role="tab" aria-selected="true">Log in</button><button class="auth-tab" type="button" data-auth-tab="register" role="tab" aria-selected="false">Register</button></div>
+      <p class="demo-notice"><strong>Demo only:</strong> Passwords are never saved. Use any password to try the demo.</p>
+      <form id="login-form" class="auth-form">
+        <label>Email address<input name="email" type="email" autocomplete="email" placeholder="you@college.edu" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" minlength="4" placeholder="Enter any demo password" required></label>
+        <button class="button button-primary button-full" type="submit">Log in to your account <span aria-hidden="true">→</span></button>
+      </form>
+      <form id="register-form" class="auth-form" hidden>
+        <label>Your name<input name="name" type="text" maxlength="50" autocomplete="name" placeholder="e.g. Alex Morgan" required></label>
+        <label>College email<input name="email" type="email" autocomplete="email" placeholder="you@college.edu" required></label>
+        <label>Create a demo password<input name="password" type="password" autocomplete="new-password" minlength="4" placeholder="At least 4 characters" required></label>
+        <label>Skills you can teach<input name="offered" type="text" maxlength="120" placeholder="e.g. Graphic design" required></label>
+        <label>Skills you want to learn<input name="wanted" type="text" maxlength="120" placeholder="e.g. Web development" required></label>
+        <label>Primary category<select name="category" required><option value="">Choose a category</option><option>Programming</option><option>Design</option><option>Video Editing</option><option>Other</option></select></label>
+        <button class="button button-primary button-full" type="submit">Create my profile <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="auth-switch" id="auth-switch">New to SkillSwap? <button type="button" data-auth-tab="register">Create an account</button></p>
+    </section>
+  </div>
+  <div class="modal-backdrop" id="exchange-modal" hidden>
+    <section class="auth-modal exchange-modal" role="dialog" aria-modal="true" aria-labelledby="exchange-title">
+      <button class="modal-close" type="button" data-close-exchange aria-label="Close exchange plan">×</button>
+      <div class="modal-brand"><span class="brand-mark">S</span></div>
+      <span class="eyebrow">YOUR SKILL SWAP PLAN</span>
+      <h2 id="exchange-title">Start your exchange</h2>
+      <div id="exchange-details" class="exchange-details"></div>
+      <form id="exchange-plan-form" class="auth-form exchange-plan-form">
+        <label>Preferred date and time<input name="preferredDateTime" type="datetime-local"></label>
+        <label>Meeting notes<textarea name="notes" rows="4" maxlength="1000" placeholder="Add a meeting place, goals, or anything to prepare..."></textarea></label>
+        <button class="button button-primary button-full" type="submit">Save exchange plan <span aria-hidden="true">→</span></button>
+      </form>
+    </section>
+  </div>
+  <div class="modal-backdrop" id="chat-modal" hidden>
+    <section class="auth-modal chat-modal" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+      <button class="modal-close" type="button" data-close-chat aria-label="Close chat">×</button>
+      <div class="chat-heading">
+        <div class="modal-brand"><span class="brand-mark" aria-hidden="true">S</span></div>
+        <span class="eyebrow">ACCEPTED SKILL EXCHANGE</span>
+        <h2 id="chat-title">Exchange chat</h2>
+        <div id="chat-details" class="exchange-details chat-details"></div>
+      </div>
+      <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
+      <form id="chat-form" class="chat-form">
+        <label class="sr-only" for="chat-message">Your message</label>
+        <input id="chat-message" name="message" type="text" maxlength="1000" autocomplete="off" placeholder="Write a message..." required>
+        <button class="button button-primary" type="submit">Send</button>
+      </form>
+    </section>
+  </div>
+  <div class="modal-backdrop" id="inbox-modal" hidden>
+    <section class="auth-modal inbox-modal" role="dialog" aria-modal="true" aria-labelledby="inbox-title">
+      <button class="modal-close" type="button" data-close-inbox aria-label="Close chat inbox">×</button>
+      <header class="inbox-heading">
+        <span class="eyebrow">YOUR CAMPUS CONVERSATIONS</span>
+        <h2 id="inbox-title">Chat inbox <span id="inbox-unread-total" class="inbox-total-badge" hidden>0</span></h2>
+        <p>Messages for your accepted skill exchanges.</p>
+      </header>
+      <div class="inbox-layout">
+        <nav id="inbox-conversations" class="inbox-conversations" aria-label="Accepted exchange conversations"></nav>
+        <section id="inbox-chat" class="inbox-chat" aria-label="Selected conversation">
+          <div id="inbox-chat-placeholder" class="inbox-placeholder">Choose a conversation to view messages.</div>
+          <div id="inbox-chat-content" class="inbox-chat-content" hidden>
+            <header class="inbox-chat-heading">
+              <div id="inbox-chat-title" class="inbox-chat-title"></div>
+              <div id="inbox-chat-details" class="exchange-details chat-details"></div>
+            </header>
+            <div id="inbox-chat-messages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
+            <form id="inbox-chat-form" class="chat-form">
+              <label class="sr-only" for="inbox-chat-message">Your message</label>
+              <input id="inbox-chat-message" name="message" type="text" maxlength="1000" autocomplete="off" placeholder="Write a message..." required>
+              <button class="button button-primary" type="submit">Send</button>
+            </form>
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
+  <div class="toast-region" id="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
