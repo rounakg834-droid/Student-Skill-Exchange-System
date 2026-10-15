@@ -7,7 +7,7 @@
   <meta name="description" content="SkillSwap helps students teach what they know and learn what they love.">
   <title>SkillSwap — Learn together. Grow together.</title>
   <link rel="stylesheet" href="style.css">
-  <script src="script.js" defer></script>
+  <script type="module" src="script.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -90,7 +90,7 @@
 
     <section class="dashboard-section section" id="dashboard">
       <div class="container">
-        <div class="section-heading dashboard-heading"><div><span class="eyebrow">YOUR SKILLS, YOUR JOURNEY</span><h2>Your learning <span>dashboard.</span></h2><p>Keep your skills current and manage your exchange requests.</p></div><button class="button button-outline reset-button" id="reset-demo">↻ Reset demo data</button></div>
+        <div class="section-heading dashboard-heading"><div><span class="eyebrow">YOUR SKILLS, YOUR JOURNEY</span><h2>Your learning <span>dashboard.</span></h2><p>Keep your skills current and manage your exchange requests.</p></div><button class="button button-outline reset-button" id="reset-demo">↻ Reset my skills</button></div>
         <div class="dashboard-layout">
           <aside class="profile-panel" id="profile-panel"></aside>
           <div class="dashboard-main">
@@ -119,18 +119,18 @@
     <section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <button class="modal-close" type="button" data-close-modal aria-label="Close dialog">×</button>
       <div class="modal-brand"><span class="brand-mark">S</span></div>
-      <span class="eyebrow">YOUR CAMPUS COMMUNITY</span><h2 id="auth-title">Welcome to SkillSwap</h2><p class="modal-intro">A demo login system for your student skill exchange.</p>
+      <span class="eyebrow">YOUR CAMPUS COMMUNITY</span><h2 id="auth-title">Welcome to SkillSwap</h2><p class="modal-intro">Create an account or log in securely with Firebase Authentication.</p>
       <div class="auth-tabs" role="tablist" aria-label="Choose login or register"><button class="auth-tab active" type="button" data-auth-tab="login" role="tab" aria-selected="true">Log in</button><button class="auth-tab" type="button" data-auth-tab="register" role="tab" aria-selected="false">Register</button></div>
-      <p class="demo-notice"><strong>Demo only:</strong> Passwords are never saved. Use any password to try the demo.</p>
+      <p class="demo-notice"><strong>Secure sign-in:</strong> Firebase Authentication manages your password. SkillSwap never stores it in Firestore.</p>
       <form id="login-form" class="auth-form">
         <label>Email address<input name="email" type="email" autocomplete="email" placeholder="you@college.edu" required></label>
-        <label>Password<input name="password" type="password" autocomplete="current-password" minlength="4" placeholder="Enter any demo password" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Enter your password" required></label>
         <button class="button button-primary button-full" type="submit">Log in to your account <span aria-hidden="true">→</span></button>
       </form>
       <form id="register-form" class="auth-form" hidden>
         <label>Your name<input name="name" type="text" maxlength="50" autocomplete="name" placeholder="e.g. Alex Morgan" required></label>
         <label>College email<input name="email" type="email" autocomplete="email" placeholder="you@college.edu" required></label>
-        <label>Create a demo password<input name="password" type="password" autocomplete="new-password" minlength="4" placeholder="At least 4 characters" required></label>
+        <label>Create a password<input name="password" type="password" autocomplete="new-password" minlength="6" placeholder="At least 6 characters" required></label>
         <label>Skills you can teach<input name="offered" type="text" maxlength="120" placeholder="e.g. Graphic design" required></label>
         <label>Skills you want to learn<input name="wanted" type="text" maxlength="120" placeholder="e.g. Web development" required></label>
         <label>Primary category<select name="category" required><option value="">Choose a category</option><option>Programming</option><option>Design</option><option>Video Editing</option><option>Other</option></select></label>
