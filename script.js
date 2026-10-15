@@ -1,23 +1,42 @@
+import { getApp, getApps, initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import {
+  browserLocalPersistence,
+  createUserWithEmailAndPassword,
+  getAuth,
+  onAuthStateChanged,
+  setPersistence,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import {
+  arrayUnion,
+  collection,
+  doc,
+  getFirestore,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "skillswap-demo-v1";
-  const SESSION_KEY = `${STORAGE_KEY}-session-user`;
-  const seedState = () => ({
-    currentUserId: null,
-    students: [
-      { id: "student-1", name: "Alex Morgan", email: "alex.morgan@campus.edu", offered: ["JavaScript", "UI Design"], wanted: ["Video Editing", "Photography"], category: "Programming", campus: "Computer Science · Year 2" },
-      { id: "student-2", name: "Jordan Rivera", email: "jordan.rivera@campus.edu", offered: ["Figma", "Brand Identity"], wanted: ["React", "Python"], category: "Design", campus: "Visual Arts · Year 3" },
-      { id: "student-3", name: "Samira Khan", email: "samira.khan@campus.edu", offered: ["Premiere Pro", "Color Grading"], wanted: ["Illustration", "JavaScript"], category: "Video Editing", campus: "Media Studies · Year 2" },
-      { id: "student-4", name: "Theo Bennett", email: "theo.bennett@campus.edu", offered: ["Python", "Data Visualization"], wanted: ["Public Speaking", "Figma"], category: "Programming", campus: "Data Science · Year 3" },
-      { id: "student-5", name: "Priya Nair", email: "priya.nair@campus.edu", offered: ["Portrait Photography", "Lightroom"], wanted: ["Motion Graphics", "HTML"], category: "Other", campus: "Communications · Year 1" },
-      { id: "student-6", name: "Eli Chen", email: "eli.chen@campus.edu", offered: ["After Effects", "Motion Graphics"], wanted: ["Photography", "Python"], category: "Video Editing", campus: "Digital Media · Year 2" }
-    ],
-    requests: [
-      { id: "request-1", fromId: "student-2", toId: "student-1", status: "pending", createdAt: Date.now() - 86400000 },
-      { id: "request-2", fromId: "student-4", toId: "student-1", status: "accepted", createdAt: Date.now() - 172800000 }
-    ]
-  });
+  const firebaseConfig = {
+    apiKey: "AIzaSyBqme_aqSVYYEjz0tOMoR06t7G5HzkAN90",
+    authDomain: "skillswap-2ef10.firebaseapp.com",
+    projectId: "skillswap-2ef10",
+    storageBucket: "skillswap-2ef10.firebasestorage.app",
+    messagingSenderId: "525231633195",
+    appId: "1:525231633195:web:6df083ad3fdf39d8954b6e",
+    measurementId: "G-JCFZX12269"
+  };
+  const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const auth = getAuth(firebaseApp);
+  const db = getFirestore(firebaseApp);
 
   const elements = {
     grid: document.querySelector("#student-grid"),
@@ -64,126 +83,164 @@
   let activeChatSurface = "modal";
   let chatPreviousFocus;
   let inboxPreviousFocus;
-  let state = loadState();
+  let state = { currentUserId: null, students: [], requests: [] };
+  let authUser = null;
+  let profileUnsubscribe = null;
+  let requestUnsubscribers = [];
+  const messageUnsubscribers = new Map();
+  const messagesByRequest = new Map();
+  let sentRequests = new Map();
+  let receivedRequests = new Map();
 
-  function loadState() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return seedState();
-      const parsed = JSON.parse(saved);
-      if (!parsed || !Array.isArray(parsed.students) || !Array.isArray(parsed.requests)) throw new Error("Saved demo data is incomplete.");
-      const categories = new Set(["Programming", "Design", "Video Editing", "Other"]);
-      const studentIds = new Set();
-      for (const student of parsed.students) {
-        if (!student || typeof student !== "object"
-          || typeof student.id !== "string" || !student.id
-          || typeof student.name !== "string" || !student.name.trim()
-          || typeof student.email !== "string" || !student.email.trim()
-          || !Array.isArray(student.offered) || !student.offered.every(skill => typeof skill === "string")
-          || !Array.isArray(student.wanted) || !student.wanted.every(skill => typeof skill === "string")
-          || !categories.has(student.category)) {
-          throw new Error("Saved demo profile data is invalid.");
-        }
-        if (studentIds.has(student.id)) throw new Error("Saved demo profiles contain duplicate IDs.");
-        studentIds.add(student.id);
-      }
-      const statuses = new Set(["pending", "accepted", "rejected"]);
-      const requestIds = new Set();
-      const messageIds = new Set();
-      for (const request of parsed.requests) {
-        const validMessages = request?.messages === undefined
-          || (Array.isArray(request.messages) && request.messages.every(message => {
-            if (!message || typeof message !== "object"
-              || typeof message.id !== "string" || !message.id
-              || ![request.fromId, request.toId].includes(message.senderId)
-              || typeof message.text !== "string"
-              || !Number.isFinite(message.createdAt)) return false;
-            const recipientId = message.senderId === request.fromId ? request.toId : request.fromId;
-            return (message.requestId === undefined || message.requestId === request.id)
-              && (message.recipientId === undefined || message.recipientId === recipientId)
-              && (message.readBy === undefined || (Array.isArray(message.readBy)
-                && message.readBy.every(userId => [request.fromId, request.toId].includes(userId))));
-          }));
-        if (!request || typeof request !== "object"
-          || typeof request.id !== "string" || !request.id
-          || !studentIds.has(request.fromId) || !studentIds.has(request.toId)
-          || request.fromId === request.toId
-          || !statuses.has(request.status)
-          || !Number.isFinite(request.createdAt)
-          || (request.offeredSkills !== undefined
-            && (!Array.isArray(request.offeredSkills) || !request.offeredSkills.every(skill => typeof skill === "string")))
-          || (request.wantedSkills !== undefined
-            && (!Array.isArray(request.wantedSkills) || !request.wantedSkills.every(skill => typeof skill === "string")))
-          || (request.exchangePlan !== undefined
-            && (!request.exchangePlan || typeof request.exchangePlan !== "object"
-              || typeof request.exchangePlan.notes !== "string"
-              || typeof request.exchangePlan.preferredDateTime !== "string"
-              || !Number.isFinite(request.exchangePlan.updatedAt)))
-          || !validMessages) {
-          throw new Error("Saved exchange request data is invalid.");
-        }
-        if (requestIds.has(request.id)) throw new Error("Saved exchange requests contain duplicate IDs.");
-        requestIds.add(request.id);
-        if (Array.isArray(request.messages)) {
-          request.messages = request.messages.map(message => {
-            const recipientId = message.senderId === request.fromId ? request.toId : request.fromId;
-            if (messageIds.has(message.id)) throw new Error("Saved chat messages contain duplicate IDs.");
-            messageIds.add(message.id);
-            return {
-              ...message,
-              requestId: request.id,
-              recipientId,
-              readBy: Array.isArray(message.readBy)
-                ? [...new Set(message.readBy)]
-                : [message.senderId]
-            };
-          });
-        }
-      }
-      let sessionUserId = null;
-      try {
-        sessionUserId = sessionStorage.getItem(SESSION_KEY);
-        if (sessionUserId === null && typeof parsed.sessionUserId === "string"
-          && parsed.students.some(student => student.id === parsed.sessionUserId)) {
-          sessionUserId = parsed.sessionUserId;
-          sessionStorage.setItem(SESSION_KEY, sessionUserId);
-        }
-      } catch (error) {
-        console.error("Unable to access the SkillSwap browser session:", error);
-        showToast("Your browser could not restore this tab's login session. Please log in again.", "error");
-      }
-      parsed.currentUserId = parsed.students.some(student => student.id === sessionUserId) ? sessionUserId : null;
-      return parsed;
-    } catch (error) {
-      console.error("Unable to load SkillSwap demo data:", error);
-      showToast("Saved demo data could not be loaded. Reset demo data to start fresh.", "error");
-      return seedState();
-    }
+  function timestampToMillis(value) {
+    if (value && typeof value.toMillis === "function") return value.toMillis();
+    return Number.isFinite(value) ? value : Date.now();
   }
 
-  function saveState() {
-    let previousSessionUserId = null;
-    try {
-      previousSessionUserId = sessionStorage.getItem(SESSION_KEY);
-      if (state.currentUserId) sessionStorage.setItem(SESSION_KEY, state.currentUserId);
-      else sessionStorage.removeItem(SESSION_KEY);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        ...state,
-        currentUserId: null,
-        sessionUserId: null
-      }));
-      return true;
-    } catch (error) {
-      try {
-        if (previousSessionUserId) sessionStorage.setItem(SESSION_KEY, previousSessionUserId);
-        else sessionStorage.removeItem(SESSION_KEY);
-      } catch (restoreError) {
-        console.error("Unable to restore the previous SkillSwap tab session:", restoreError);
+  function reportFirebaseError(action, error) {
+    console.error(`SkillSwap ${action} failed:`, error);
+    showToast(`${action} failed. ${error?.message || "Check your connection and Firebase setup."}`, "error");
+  }
+
+  function stopUserListeners() {
+    requestUnsubscribers.forEach(unsubscribe => unsubscribe());
+    requestUnsubscribers = [];
+    messageUnsubscribers.forEach(unsubscribe => unsubscribe());
+    messageUnsubscribers.clear();
+    messagesByRequest.clear();
+    sentRequests = new Map();
+    receivedRequests = new Map();
+    state.requests = [];
+  }
+
+  function updateRequestState() {
+    const combined = new Map([...sentRequests, ...receivedRequests]);
+    const presentIds = new Set(combined.keys());
+    for (const [requestId, unsubscribe] of messageUnsubscribers) {
+      if (!presentIds.has(requestId) || combined.get(requestId).status !== "accepted") {
+        unsubscribe();
+        messageUnsubscribers.delete(requestId);
+        messagesByRequest.delete(requestId);
       }
-      console.error("Unable to save SkillSwap demo data:", error);
-      showToast("Your browser could not save this change. Check your storage settings.", "error");
-      return false;
     }
+    for (const request of combined.values()) {
+      if (request.status === "accepted" && !messageUnsubscribers.has(request.id)) {
+        const unsubscribe = onSnapshot(collection(db, "requests", request.id, "messages"), snapshot => {
+          const messages = snapshot.docs.map(messageDoc => {
+            const data = messageDoc.data({ serverTimestamps: "estimate" });
+            return {
+              ...data,
+              id: messageDoc.id,
+              requestId: request.id,
+              createdAt: timestampToMillis(data.createdAt),
+              readBy: Array.isArray(data.readBy) ? data.readBy : []
+            };
+          }).sort((a, b) => a.createdAt - b.createdAt);
+          messagesByRequest.set(request.id, messages);
+          updateRequestState();
+        }, error => reportFirebaseError("Loading exchange messages", error));
+        messageUnsubscribers.set(request.id, unsubscribe);
+      }
+    }
+    state.requests = [...combined.values()]
+      .map(request => ({ ...request, messages: messagesByRequest.get(request.id) || [] }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+    render();
+  }
+
+  function subscribeUserRequests(userId) {
+    stopUserListeners();
+    if (!userId) {
+      render();
+      return;
+    }
+    const requests = collection(db, "requests");
+    requestUnsubscribers = [
+      onSnapshot(query(requests, where("fromId", "==", userId)), snapshot => {
+        sentRequests = new Map(snapshot.docs.map(requestDoc => {
+          const data = requestDoc.data({ serverTimestamps: "estimate" });
+          return [requestDoc.id, { ...data, id: requestDoc.id, createdAt: timestampToMillis(data.createdAt) }];
+        }));
+        updateRequestState();
+      }, error => reportFirebaseError("Loading sent requests", error)),
+      onSnapshot(query(requests, where("toId", "==", userId)), snapshot => {
+        receivedRequests = new Map(snapshot.docs.map(requestDoc => {
+          const data = requestDoc.data({ serverTimestamps: "estimate" });
+          return [requestDoc.id, { ...data, id: requestDoc.id, createdAt: timestampToMillis(data.createdAt) }];
+        }));
+        updateRequestState();
+      }, error => reportFirebaseError("Loading received requests", error))
+    ];
+  }
+
+  profileUnsubscribe = onSnapshot(collection(db, "profiles"), snapshot => {
+    state.students = snapshot.docs.map(profileDoc => {
+      const data = profileDoc.data();
+      return {
+        id: profileDoc.id,
+        name: data.name,
+        offered: Array.isArray(data.offered) ? data.offered : [],
+        wanted: Array.isArray(data.wanted) ? data.wanted : [],
+        category: data.category,
+        campus: data.campus || "Student community member"
+      };
+    }).filter(student => student.name && student.category);
+    render();
+  }, error => reportFirebaseError("Loading student profiles", error));
+
+  function getCurrentUser() {
+    const profile = state.students.find(student => student.id === state.currentUserId);
+    if (!authUser || !state.currentUserId) return null;
+    if (profile) {
+      profile.email = authUser.email || "";
+      return profile;
+    }
+    return {
+        id: authUser.uid,
+        name: authUser.displayName || authUser.email?.split("@")[0] || "Student",
+        email: authUser.email || "",
+        offered: [],
+        wanted: [],
+        category: "Other",
+        campus: "Student community member"
+      };
+  }
+
+  function profileDocument(student) {
+    const profile = {
+      name: student.name,
+      offered: student.offered,
+      wanted: student.wanted,
+      category: student.category,
+      campus: student.campus || "Student community member"
+    };
+    const categories = ["Programming", "Design", "Video Editing", "Other"];
+    if (typeof profile.name !== "string" || !profile.name.trim() || profile.name.length > 50
+      || !Array.isArray(profile.offered) || profile.offered.length > 30
+      || !profile.offered.every(skill => typeof skill === "string")
+      || !Array.isArray(profile.wanted) || profile.wanted.length > 30
+      || !profile.wanted.every(skill => typeof skill === "string")
+      || !categories.includes(profile.category)
+      || typeof profile.campus !== "string" || profile.campus.length > 120) {
+      throw new Error("Profile must have a name, valid category, and no more than 30 skills in each list.");
+    }
+    return profile;
+  }
+
+  function saveProfile(student) {
+    return setDoc(doc(db, "profiles", student.id), profileDocument(student));
+  }
+
+  function requestDocument(request) {
+    return {
+      fromId: request.fromId,
+      toId: request.toId,
+      offeredSkills: request.offeredSkills,
+      wantedSkills: request.wantedSkills,
+      status: request.status,
+      createdAt: request.createdAt,
+      ...(request.exchangePlan ? { exchangePlan: request.exchangePlan } : {})
+    };
   }
 
   function escapeHTML(value) {
@@ -194,14 +251,6 @@
 
   function initials(name) {
     return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || "").join("");
-  }
-
-  function getCurrentUser() {
-    return state.students.find(student => student.id === state.currentUserId) || null;
-  }
-
-  function refreshState() {
-    state = loadState();
   }
 
   function showToast(message, type = "success") {
@@ -416,7 +465,7 @@
     return id;
   }
 
-  document.addEventListener("click", event => {
+  document.addEventListener("click", async event => {
     const authButton = event.target.closest("[data-open-auth]");
     if (authButton) openAuth(authButton.dataset.openAuth);
 
@@ -438,7 +487,6 @@
 
     const connectButton = event.target.closest("[data-connect]");
     if (connectButton) {
-      refreshState();
       const user = getCurrentUser();
       if (!user) {
         showToast("Log in to send a skill exchange request.", "error");
@@ -474,18 +522,18 @@
         status: "pending",
         createdAt: Date.now()
       };
-      state.requests.push(request);
-      if (saveState()) {
+      try {
+        await setDoc(doc(db, "requests", request.id), requestDocument(request));
+        state.requests.push({ ...request, messages: [] });
         render();
         showToast("Connection request sent. Happy skill swapping!");
-      } else {
-        state.requests = state.requests.filter(item => item.id !== request.id);
+      } catch (error) {
+        reportFirebaseError("Sending exchange request", error);
       }
     }
 
     const requestAction = event.target.closest("[data-request-action]");
     if (requestAction) {
-      refreshState();
       const request = state.requests.find(item => item.id === requestAction.dataset.requestId);
       const user = getCurrentUser();
       const nextStatus = requestAction.dataset.requestAction;
@@ -495,22 +543,21 @@
         showToast("This request is no longer available.", "error");
         return;
       }
-      const previousStatus = request.status;
-      request.status = nextStatus;
-      if (saveState()) {
+      try {
+        await updateDoc(doc(db, "requests", request.id), { status: nextStatus });
+        request.status = nextStatus;
         render();
         showToast(request.status === "accepted"
           ? "Skill exchange request accepted successfully!"
           : "Skill exchange request rejected.");
-      } else {
-        request.status = previousStatus;
+      } catch (error) {
         render();
+        reportFirebaseError("Updating exchange request", error);
       }
     }
 
     const startExchangeButton = event.target.closest("[data-start-exchange]");
     if (startExchangeButton) {
-      refreshState();
       const request = state.requests.find(item => item.id === startExchangeButton.dataset.startExchange);
       if (!request || request.status !== "accepted"
         || (request.fromId !== state.currentUserId && request.toId !== state.currentUserId)) {
@@ -522,7 +569,6 @@
 
     const chatButton = event.target.closest("[data-open-chat]");
     if (chatButton) {
-      refreshState();
       const request = state.requests.find(item => item.id === chatButton.dataset.openChat);
       const user = getCurrentUser();
       if (!user || !request || request.status !== "accepted"
@@ -564,9 +610,20 @@
     }
 
     if (event.target.closest("#reset-demo")) {
-      if (!window.confirm("Reset all SkillSwap demo profiles, skills and exchange requests to the original sample data? This cannot be undone.")) return;
-      state = seedState();
-      if (saveState()) {
+      const user = getCurrentUser();
+      if (!user) {
+        showToast("Log in to reset your profile skills.", "error");
+        openAuth("login");
+        return;
+      }
+      if (!window.confirm("Clear the skills on your own profile? Your exchange requests and chat history will remain.")) return;
+      const previous = { offered: user.offered, wanted: user.wanted, category: user.category };
+      user.offered = [];
+      user.wanted = [];
+      user.category = "Other";
+      try {
+        await saveProfile(user);
+        if (!state.students.some(student => student.id === user.id)) state.students.push(user);
         activeCategory = "All";
         elements.search.value = "";
         document.querySelectorAll(".filter-chip").forEach(button => {
@@ -575,7 +632,11 @@
           button.setAttribute("aria-pressed", String(selected));
         });
         render();
-        showToast("Demo data has been reset to the original sample profiles.");
+        showToast("Your profile skills were cleared. Requests and chats were preserved.");
+      } catch (error) {
+        Object.assign(user, previous);
+        render();
+        reportFirebaseError("Resetting profile skills", error);
       }
     }
 
@@ -591,16 +652,18 @@
     }
 
     if (event.target.closest("[data-logout]")) {
-      refreshState();
-      state.currentUserId = null;
-      if (saveState()) {
+      try {
+        await signOut(auth);
         if (!elements.chatModal.hidden) closeChat();
+        if (!elements.inboxModal.hidden) closeInbox();
         elements.navLinks.classList.remove("open");
         elements.menuToggle.setAttribute("aria-expanded", "false");
         elements.menuToggle.setAttribute("aria-label", "Open navigation menu");
         render();
         navigateHome();
-        showToast("You have been logged out. Your saved skills and requests are unchanged.");
+        showToast("You have been logged out. Your saved data is unchanged.");
+      } catch (error) {
+        reportFirebaseError("Logging out", error);
       }
     }
   });
@@ -608,7 +671,7 @@
   elements.search.addEventListener("input", renderStudents);
   document.querySelector("#current-year").textContent = String(new Date().getFullYear());
 
-  document.querySelector("#skill-form").addEventListener("submit", event => {
+  document.querySelector("#skill-form").addEventListener("submit", async event => {
     event.preventDefault();
     const user = getCurrentUser();
     if (!user) {
@@ -623,46 +686,47 @@
       showToast("Add at least one skill to teach and one skill to learn.", "error");
       return;
     }
-    user.offered = [...new Set([...user.offered, ...offered])];
-    user.wanted = [...new Set([...user.wanted, ...wanted])];
+    const updatedOffered = [...new Set([...user.offered, ...offered])];
+    const updatedWanted = [...new Set([...user.wanted, ...wanted])];
+    if (updatedOffered.length > 30 || updatedWanted.length > 30) {
+      showToast("Profiles can list up to 30 skills in each list.", "error");
+      return;
+    }
+    user.offered = updatedOffered;
+    user.wanted = updatedWanted;
     user.category = String(formData.get("category"));
-    if (saveState()) {
+    try {
+      await saveProfile(user);
+      if (!state.students.some(student => student.id === user.id)) state.students.push(user);
       event.currentTarget.reset();
       render();
       showToast("Your skills have been added to your profile.");
+    } catch (error) {
+      reportFirebaseError("Saving skills", error);
     }
   });
 
-  elements.loginForm.addEventListener("submit", event => {
+  elements.loginForm.addEventListener("submit", async event => {
     event.preventDefault();
-    refreshState();
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email")).trim().toLocaleLowerCase();
-    const student = state.students.find(item => item.email.toLocaleLowerCase() === email);
-    if (!student) {
-      showToast("We couldn't find that demo profile. Register to create one.", "error");
-      return;
-    }
-    state.currentUserId = student.id;
-    if (saveState()) {
-      closeAuth();
-      render();
-      navigateHome();
-      showToast(`Welcome back, ${student.name.split(" ")[0]}!`);
-    }
-  });
-
-  elements.registerForm.addEventListener("submit", event => {
-    event.preventDefault();
-    refreshState();
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email")).trim();
-    if (state.students.some(student => student.email.toLocaleLowerCase() === email.toLocaleLowerCase())) {
-      showToast("A profile with that email already exists. Log in instead.", "error");
-      return;
+    const password = String(formData.get("password"));
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const name = credential.user.displayName || email.split("@")[0];
+      closeAuth();
+      navigateHome();
+      showToast(`Welcome back, ${name.split(" ")[0]}!`);
+    } catch (error) {
+      reportFirebaseError("Logging in", error);
     }
+  });
+
+  elements.registerForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email")).trim();
     const student = {
-      id: makeId("student"),
       name: String(formData.get("name")).trim(),
       email,
       offered: String(formData.get("offered")).split(",").map(skill => skill.trim()).filter(Boolean),
@@ -670,18 +734,31 @@
       category: String(formData.get("category")),
       campus: "Student community member"
     };
-    if (!student.name || !student.offered.length || !student.wanted.length) {
-      showToast("Please enter your name and at least one skill to teach and learn.", "error");
+    if (!student.name || student.name.length > 50 || !student.offered.length || !student.wanted.length
+      || student.offered.length > 30 || student.wanted.length > 30
+      || !["Programming", "Design", "Video Editing", "Other"].includes(student.category)) {
+      showToast("Enter a name of up to 50 characters, choose a category, and list 1–30 skills to teach and learn.", "error");
       return;
     }
-    state.students.push(student);
-    state.currentUserId = student.id;
-    if (saveState()) {
+    try {
+      const signedInUser = auth.currentUser?.email?.toLocaleLowerCase() === email.toLocaleLowerCase()
+        ? auth.currentUser
+        : null;
+      const credential = signedInUser
+        ? { user: signedInUser }
+        : await createUserWithEmailAndPassword(auth, email, String(formData.get("password")));
+      student.id = credential.user.uid;
+      await updateProfile(credential.user, { displayName: student.name });
+      await saveProfile(student);
+      state.students = [...state.students.filter(profile => profile.id !== student.id), student];
+      state.currentUserId = student.id;
       event.currentTarget.reset();
       closeAuth();
       render();
       navigateHome();
       showToast(`Your profile is ready, ${student.name.split(" ")[0]}!`);
+    } catch (error) {
+      reportFirebaseError("Creating account", error);
     }
   });
 
@@ -716,9 +793,8 @@
     exchangePreviousFocus?.focus();
   }
 
-  elements.exchangePlanForm.addEventListener("submit", event => {
+  elements.exchangePlanForm.addEventListener("submit", async event => {
     event.preventDefault();
-    refreshState();
     const request = state.requests.find(item => item.id === activeExchangeRequestId);
     if (!request || request.status !== "accepted"
       || (request.fromId !== state.currentUserId && request.toId !== state.currentUserId)) {
@@ -727,17 +803,20 @@
       return;
     }
     const previousPlan = request.exchangePlan;
-    request.exchangePlan = {
+    const exchangePlan = {
       preferredDateTime: elements.exchangePlanForm.elements.preferredDateTime.value,
       notes: elements.exchangePlanForm.elements.notes.value.trim(),
       updatedAt: Date.now()
     };
-    if (saveState()) {
+    try {
+      await updateDoc(doc(db, "requests", request.id), { exchangePlan });
+      request.exchangePlan = exchangePlan;
       render();
       closeExchangePlan();
       showToast("Exchange plan saved. Both students can see the updated details.");
-    } else {
+    } catch (error) {
       request.exchangePlan = previousPlan;
+      reportFirebaseError("Saving exchange plan", error);
     }
   });
 
@@ -794,8 +873,7 @@
     messages.scrollTop = messages.scrollHeight + 1;
   }
 
-  function openChat(request, trigger) {
-    refreshState();
+  async function openChat(request, trigger) {
     request = state.requests.find(item => item.id === request.id);
     const user = getCurrentUser();
     if (!request || !user || request.status !== "accepted"
@@ -804,12 +882,10 @@
       showToast("This exchange chat is no longer available.", "error");
       return;
     }
-    const changed = markChatRead(request, user.id);
-    if (changed && !saveState()) {
-      refreshState();
-      request = state.requests.find(item => item.id === activeChatRequestId);
-      render();
-      showToast("The chat opened, but read status could not be saved.", "error");
+    try {
+      await markChatRead(request, user.id);
+    } catch (error) {
+      reportFirebaseError("Marking messages as read", error);
     }
     if (!request) return;
     activeChatSurface = "modal";
@@ -894,7 +970,6 @@
   }
 
   function openInbox(trigger) {
-    refreshState();
     const user = getCurrentUser();
     if (!user) {
       showToast("Log in to open your chat inbox.", "error");
@@ -909,8 +984,7 @@
     requestAnimationFrame(() => elements.inboxModal.querySelector("[data-close-inbox]").focus());
   }
 
-  function openInboxConversation(requestId) {
-    refreshState();
+  async function openInboxConversation(requestId) {
     const user = getCurrentUser();
     const request = state.requests.find(item => item.id === requestId);
     if (!user || !request || request.status !== "accepted"
@@ -921,27 +995,27 @@
     }
     activeChatSurface = "inbox";
     activeChatRequestId = request.id;
-    if (markChatRead(request, user.id) && !saveState()) {
-      refreshState();
+    try {
+      await markChatRead(request, user.id);
+    } catch (error) {
       renderInbox();
-      showToast("Conversation opened, but read status could not be saved.", "error");
+      reportFirebaseError("Marking messages as read", error);
       return;
     }
     render();
     elements.inboxChatMessage.focus();
   }
 
-  function markChatRead(request, userId) {
-    if (!Array.isArray(request.messages)) return false;
-    let changed = false;
-    for (const message of request.messages) {
-      if (message.requestId === request.id && message.recipientId === userId
-        && !message.readBy.includes(userId)) {
-        message.readBy.push(userId);
-        changed = true;
-      }
-    }
-    return changed;
+  async function markChatRead(request, userId) {
+    const unreadMessages = (request.messages || []).filter(message =>
+      message.requestId === request.id
+      && message.recipientId === userId
+      && !message.readBy.includes(userId));
+    if (!unreadMessages.length) return;
+    await Promise.all(unreadMessages.map(message =>
+      updateDoc(doc(db, "requests", request.id, "messages", message.id), { readBy: arrayUnion(userId) })));
+    unreadMessages.forEach(message => message.readBy.push(userId));
+    render();
   }
 
   function closeChat() {
@@ -957,9 +1031,8 @@
     renderNavigation();
   }
 
-  function sendChatMessage(event, input, surface) {
+  async function sendChatMessage(event, input, surface) {
     event.preventDefault();
-    refreshState();
     const user = getCurrentUser();
     const request = state.requests.find(item => item.id === activeChatRequestId);
     if (!user || !request || request.status !== "accepted"
@@ -988,14 +1061,26 @@
     };
     if (!Array.isArray(request.messages)) request.messages = [];
     request.messages.push(message);
-    if (saveState()) {
+    render();
+    renderChat(request, surface);
+    try {
+      await setDoc(doc(db, "requests", request.id, "messages", message.id), {
+        requestId: request.id,
+        senderId: user.id,
+        recipientId,
+        text,
+        createdAt: serverTimestamp(),
+        readBy: [user.id]
+      });
       input.value = "";
       render();
       renderChat(request, surface);
       input.focus();
       showToast("Message sent.");
-    } else {
+    } catch (error) {
       request.messages = request.messages.filter(item => item.id !== message.id);
+      render();
+      reportFirebaseError("Sending message", error);
     }
   }
 
@@ -1016,30 +1101,16 @@
     if (event.key === "Escape" && !elements.inboxModal.hidden) closeInbox();
   });
 
-  window.addEventListener("storage", event => {
-    if (event.key !== STORAGE_KEY && event.key !== null) return;
-    state = loadState();
+  setPersistence(auth, browserLocalPersistence).catch(error =>
+    reportFirebaseError("Restoring sign-in", error));
+  onAuthStateChanged(auth, user => {
+    authUser = user;
+    state.currentUserId = user?.uid || null;
+    activeChatRequestId = null;
+    stopUserListeners();
+    subscribeUserRequests(user?.uid || null);
     render();
-    if (activeChatRequestId) {
-      const request = state.requests.find(item => item.id === activeChatRequestId);
-      const user = getCurrentUser();
-      if (!request || !user || !renderChat(request)) {
-        if (activeChatSurface === "inbox") closeInbox();
-        else closeChat();
-        return;
-      }
-      if (markChatRead(request, user.id)) {
-        if (saveState()) render();
-        else {
-          refreshState();
-          render();
-          showToast("New chat messages arrived, but read status could not be saved.", "error");
-          return;
-        }
-      }
-      renderChat(request, activeChatSurface);
-    }
-  });
+  }, error => reportFirebaseError("Checking sign-in", error));
 
   render();
 })();
