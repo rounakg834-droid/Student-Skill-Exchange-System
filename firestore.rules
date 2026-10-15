@@ -1,0 +1,132 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isParticipant(exchange) {
+      return signedIn()
+        && (exchange.fromId == request.auth.uid || exchange.toId == request.auth.uid);
+    }
+
+    function exchangeExistsAndAccepted(requestId) {
+      return exists(/databases/$(database)/documents/requests/$(requestId))
+        && get(/databases/$(database)/documents/requests/$(requestId)).data.status == "accepted";
+    }
+
+    function validProfile(data) {
+      return data.keys().hasAll(["name", "offered", "wanted", "category", "campus"])
+        && data.keys().hasOnly(["name", "offered", "wanted", "category", "campus"])
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 50
+        && data.offered is list
+        && data.offered.size() <= 30
+        && data.wanted is list
+        && data.wanted.size() <= 30
+        && data.category in ["Programming", "Design", "Video Editing", "Other"]
+        && data.campus is string
+        && data.campus.size() <= 120;
+    }
+
+    function validExchangePlan(data) {
+      return data is map
+        && data.keys().hasAll(["preferredDateTime", "notes", "updatedAt"])
+        && data.keys().hasOnly(["preferredDateTime", "notes", "updatedAt"])
+        && data.preferredDateTime is string
+        && data.preferredDateTime.size() <= 40
+        && data.notes is string
+        && data.notes.size() <= 1000
+        && data.updatedAt is number;
+    }
+
+    match /profiles/{userId} {
+      // Only public profile fields are stored in this collection.
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && validProfile(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /requests/{requestId} {
+      allow read: if isParticipant(resource.data);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll([
+          "fromId", "toId", "offeredSkills", "wantedSkills", "status", "createdAt"
+        ])
+        && request.resource.data.keys().hasOnly([
+          "fromId", "toId", "offeredSkills", "wantedSkills", "status", "createdAt"
+        ])
+        && request.resource.data.fromId == request.auth.uid
+        && request.resource.data.toId is string
+        && request.resource.data.toId != request.auth.uid
+        && exists(/databases/$(database)/documents/profiles/$(request.resource.data.fromId))
+        && exists(/databases/$(database)/documents/profiles/$(request.resource.data.toId))
+        && request.resource.data.offeredSkills is list
+        && request.resource.data.offeredSkills.size() <= 30
+        && request.resource.data.wantedSkills is list
+        && request.resource.data.wantedSkills.size() <= 30
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdAt is number;
+      allow update: if signedIn()
+        && isParticipant(resource.data)
+        && (
+          (
+            resource.data.toId == request.auth.uid
+            && resource.data.status == "pending"
+            && request.resource.data.status in ["accepted", "rejected"]
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+          )
+          ||
+          (
+            resource.data.status == "accepted"
+            && request.resource.data.status == "accepted"
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["exchangePlan"])
+            && validExchangePlan(request.resource.data.exchangePlan)
+          )
+        );
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function exchange() {
+          return get(/databases/$(database)/documents/requests/$(requestId)).data;
+        }
+
+        allow read: if signedIn()
+          && exchangeExistsAndAccepted(requestId)
+          && isParticipant(exchange());
+        allow create: if signedIn()
+          && exchangeExistsAndAccepted(requestId)
+          && isParticipant(exchange())
+          && request.resource.data.keys().hasAll([
+            "requestId", "senderId", "recipientId", "text", "createdAt", "readBy"
+          ])
+          && request.resource.data.keys().hasOnly([
+            "requestId", "senderId", "recipientId", "text", "createdAt", "readBy"
+          ])
+          && request.resource.data.requestId == requestId
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.recipientId in [exchange().fromId, exchange().toId]
+          && request.resource.data.recipientId != request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.readBy == [request.auth.uid];
+        allow update: if signedIn()
+          && exchangeExistsAndAccepted(requestId)
+          && isParticipant(exchange())
+          && resource.data.recipientId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["readBy"])
+          && request.resource.data.readBy is list
+          && request.resource.data.readBy.hasAll(resource.data.readBy)
+          && request.resource.data.readBy.hasOnly([resource.data.senderId, resource.data.recipientId])
+          && request.resource.data.readBy.hasAll([request.auth.uid]);
+        allow delete: if false;
+      }
+    }
+  }
+}
